@@ -13,13 +13,14 @@ on:
     - patchback/backports/**  # Patchback always creates PRs
     - pre-commit-ci-update-config  # pre-commit.ci always creates a PR
   pull_request:
+    ignore-paths:  # changes to the cron workflow are triggered through it
+    - .github/workflows/scheduled-runs.yml
     types:
     - opened  # default
     - synchronize  # default
     - reopened  # default
     - ready_for_review  # used in PRs created from the release workflow
-  schedule:
-  - cron: 3 5 * * *  # Run daily at 5:03 UTC
+  workflow_call:  # a way to embed the main tests
   workflow_dispatch:
     inputs:
       release-version:
@@ -790,7 +791,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 1
+    timeout-minutes: 2  # docker+network are slow sometimes
 
     environment:
       name: pypi
@@ -837,7 +838,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    timeout-minutes: 1
+    timeout-minutes: 2  # docker+network are slow sometimes
 
     environment:
       name: testpypi
@@ -1053,9 +1054,9 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: >-
-          ${{ steps.slsa-provenance.outputs.provenance-name }}
+          ${{ needs.slsa-provenance.outputs.provenance-name }}
         path: >-
-          ${{ steps.slsa-provenance.outputs.provenance-name }}
+          ${{ needs.slsa-provenance.outputs.provenance-name }}
 
     - name: Figure out if the current version is a pre-release
       id: release-maturity-check
@@ -1139,6 +1140,7 @@ jobs:
           dist/${{ needs.pre-setup.outputs.sdist-artifact-name }}.sigstore.json
           dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}
           dist/${{ needs.pre-setup.outputs.wheel-artifact-name }}.sigstore.json
+          ${{ needs.slsa-provenance.outputs.provenance-name }}
         artifactContentType: raw  # Because whl and tgz are of different types
         bodyFile: release-notes.md
         discussionCategory: Announcements
